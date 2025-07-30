@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -33,6 +32,7 @@ def now() -> str:
 
 
 def load_config() -> dict:
+    """Return stored configuration or an empty dict if none exists."""
     if CONFIG_FILE.exists():
         with CONFIG_FILE.open(encoding="utf-8") as fh:
             return json.load(fh)
@@ -40,19 +40,22 @@ def load_config() -> dict:
 
 
 def save_config(cfg: dict) -> None:
+    """Persist ``cfg`` to ``CONFIG_FILE``."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     with CONFIG_FILE.open("w", encoding="utf-8") as fh:
         json.dump(cfg, fh, indent=2)
 
 
 def prompt_notebook() -> Path:
+    """Ask the user for a notebook folder path and ensure it exists."""
     path = input("provide file-path to your notebook (folder)\n> ").strip()
-    nb   = Path(path).expanduser().resolve()
+    nb = Path(path).expanduser().resolve()
     nb.mkdir(parents=True, exist_ok=True)
     return nb
 
 
 def prompt_page() -> str:
+    """Ask for a page name; generate a timestamped one if blank."""
     name = input("name of new page\n> ").strip()
     if not name:
         name = datetime.now().strftime("%Y-%m-%d_%H%M%S")
@@ -60,6 +63,7 @@ def prompt_page() -> str:
 
 
 def ensure_notebook(cfg: dict) -> Path:
+    """Return the active notebook folder, prompting the user if necessary."""
     nb_path = Path(cfg.get("notebook", ""))
     if not nb_path.is_dir():
         nb_path = prompt_notebook()
@@ -69,6 +73,7 @@ def ensure_notebook(cfg: dict) -> Path:
 
 
 def ensure_page(cfg: dict, nb_path: Path) -> Path:
+    """Return the active page file path, creating it if needed."""
     page_name = cfg.get("page")
     page_path = nb_path / f"{page_name}.csv" if page_name else None
     if not page_path or not page_path.exists():
@@ -81,8 +86,9 @@ def ensure_page(cfg: dict, nb_path: Path) -> Path:
 
 
 def append_note(note_text: str) -> None:
-    cfg       = load_config()
-    nb_path   = ensure_notebook(cfg)
+    """Append ``note_text`` to the current page with a timestamp."""
+    cfg = load_config()
+    nb_path = ensure_notebook(cfg)
     page_path = ensure_page(cfg, nb_path)
 
     ts = now()
@@ -96,22 +102,25 @@ def append_note(note_text: str) -> None:
 
 
 def show_active() -> None:
+    """Print the currently active notebook and page."""
     cfg = load_config()
-    nb  = cfg.get("notebook", "<unset>")
-    pg  = cfg.get("page", "<unset>")
+    nb = cfg.get("notebook", "<unset>")
+    pg = cfg.get("page", "<unset>")
     print(f"Active notebook: {nb}\nActive page: {pg}")
 
 
 def change_notebook() -> None:
-    cfg      = load_config()
-    nb_path  = prompt_notebook()
+    """Prompt for a new notebook and make it active."""
+    cfg = load_config()
+    nb_path = prompt_notebook()
     cfg.update({"notebook": str(nb_path), "page": None})
     save_config(cfg)
     print(f"Notebook changed to {nb_path}")
 
 
 def change_page() -> None:
-    cfg     = load_config()
+    """Prompt for a new page within the active notebook."""
+    cfg = load_config()
     nb_path = ensure_notebook(cfg)
 
     pages = sorted(p.stem for p in nb_path.glob("*.csv"))
@@ -130,6 +139,7 @@ def change_page() -> None:
 
 
 def tail(page_path: Path, n: int | None) -> list[tuple[str, str]]:
+    """Return the last ``n`` rows from ``page_path`` (or all if ``n`` is ``None``)."""
     rows: list[tuple[str, str]] = []
     with page_path.open(newline="", encoding="utf-8") as fh:
         for ts, note in csv.reader(fh):
@@ -138,7 +148,8 @@ def tail(page_path: Path, n: int | None) -> list[tuple[str, str]]:
 
 
 def cmd_foot(n: str | None) -> None:
-    cfg       = load_config()
+    """Print the last ``n`` (or all) notes from the active page."""
+    cfg = load_config()
     nb_path   = ensure_notebook(cfg)
     page_path = ensure_page(cfg, nb_path)
 
@@ -154,7 +165,8 @@ def cmd_foot(n: str | None) -> None:
 
 
 def cmd_notetime(idx: int) -> None:
-    cfg       = load_config()
+    """Print the timestamp of note number ``idx``."""
+    cfg = load_config()
     nb_path   = ensure_notebook(cfg)
     page_path = ensure_page(cfg, nb_path)
     rows      = tail(page_path, None)
@@ -166,7 +178,8 @@ def cmd_notetime(idx: int) -> None:
 
 
 def cmd_timenote(ts_query: str) -> None:
-    cfg       = load_config()
+    """Print the note whose timestamp starts with ``ts_query``."""
+    cfg = load_config()
     nb_path   = ensure_notebook(cfg)
     page_path = ensure_page(cfg, nb_path)
 
@@ -183,6 +196,7 @@ def cmd_timenote(ts_query: str) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_parser() -> argparse.ArgumentParser:
+    """Return the argument parser for the ``stamp`` CLI."""
     p = argparse.ArgumentParser(
         prog="stamp",
         add_help=False,
@@ -214,6 +228,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """CLI entry point used by the ``stamp`` console script."""
     argv = argv or sys.argv[1:]
     if not argv:
         build_parser().print_help()
@@ -228,12 +243,18 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     cmd, *rest = argv
-    if   cmd == "newpage":      change_page()
-    elif cmd == "newnotebook":  change_notebook()
-    elif cmd == "active":       show_active()
-    elif cmd == "page":         change_page()
-    elif cmd == "notebook":     change_notebook()
-    elif cmd == "foot":         cmd_foot(rest[0] if rest else None)
+    if cmd == "newpage":
+        change_page()
+    elif cmd == "newnotebook":
+        change_notebook()
+    elif cmd == "active":
+        show_active()
+    elif cmd == "page":
+        change_page()
+    elif cmd == "notebook":
+        change_notebook()
+    elif cmd == "foot":
+        cmd_foot(rest[0] if rest else None)
     elif cmd == "notetime":
         if not rest:
             print("stamp failed: supply note index")

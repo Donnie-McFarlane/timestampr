@@ -1,0 +1,14 @@
+[project]
+name            = "timestampr"
+version         = "0.1.0"
+description     = "Bare‑bones note‑taker with timestamp"
+authors         = [{ name = "Your Name" }]
+license         = { text = "MIT" }
+requires-python = ">=3.8"
+
+[project.scripts]
+stamp = "timestampr.cli:main"
+
+[build-system]
+requires      = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

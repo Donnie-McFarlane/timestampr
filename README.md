@@ -1,25 +1,37 @@
-# timestampr
+# README: timestampr(CLI)
 
-Bare-bones note-taker with timestamps – *"folder = notebook, file = page, row = note + timestamp"*
+A bare-bones note-taker that timestamps everything.
 
-```
-bash
-pip install git+https://github.com/<user>/timestampr.git   # or clone & `pip install .`
-stamp - writing my first note
-```
+---
+
+## 0 Imagine:
+
+Your notebook was laying open while you worked. You were multi-tasking. You were sporadically jotting down notes. You were working late to meet a deadline. Repeat ad nauseam. Now skip ahead a year or more. You need to write a grad thesis based on those notes.
+
+If you were using pen and paper:
+- your notes are probably a mess;
+- you will waste a month of Sundays trying to decipher them;
+- you might need to defer your graduation.
+
+If you were using `timestampr(CLI)`:
+- your notes were timestamped and filed (by date or topic);
+- your notes are now searchable, sortable, and exportable;
+- you might have time to go camping this weekend.
 
 ---
 
 ## 1 What it does
 
-`timestampr` lets you jot ultra-quick notes from any terminal.\
-Each notebook is just a folder on your disk; each page is a `.csv` file inside that folder; every line is:
+`timestampr(CLI)` lets you jot ultra-quick notes from any terminal.\
+Each notebook is just a folder on your laptop;\
+Each page is a `.csv` file inside that folder;\
+Each line is simply:
 
 ```
 YYYY-MM-DD HH:MM:SS,Your note text…
 ```
 
-Because it is plain text you can back-up, grep, sync to the cloud, or open in Excel.
+Since it is plain text, you can easily **grep**, **sync to the cloud**, or **open in Excel**.
 
 ---
 
@@ -35,28 +47,28 @@ stamp newpage                  # name it or press <Enter> for an auto-dated page
 
 # 3. write notes
 stamp - fixed issue #42
-stamp - switched buffer to CSV
+stamp - inoculated flasks 7-9
 ```
 
 ---
 
-## 3 All commands
+## 3 Commands available
 
-| Action                                      | Command & arguments                                   |
-| ------------------------------------------- | ----------------------------------------------------- |
-| **New note**                                | `stamp - <note text>`                                 |
-| **New page (prompt)**                       | `stamp newpage`                                       |
-| **New notebook (prompt)**                   | `stamp newnotebook`                                   |
-| **Show active notebook & page**             | `stamp active`                                        |
-| **Change page**                             | `stamp page`                                          |
-| **Change notebook**                         | `stamp notebook`                                      |
-| **Show last 10 notes**                      | `stamp foot`                                          |
-| **Show last *****N***** notes**             | `stamp foot N` (e.g. `stamp foot 25`)                 |
-| **Show *****all***** notes**                | `stamp foot all`                                      |
-| **Show timestamp of note #X**               | `stamp notetime X` (1-based index)                    |
-| **Show note whose timestamp starts with Y** | `stamp timenote Y` (e.g. `stamp timenote 2025-07-30`) |
+| Command & arguments                                   | Action                                  |
+| ----------------------------------------------------- | --------------------------------------- |
+| `stamp - <note text>`                                 | New note                                |
+| `stamp newpage`                                       | New page (prompt)                       |
+| `stamp newnotebook`                                   | New notebook (prompt)                   |
+| `stamp active`                                        | Show active notebook & page             |
+| `stamp page`                                          | Change page                             |
+| `stamp notebook`                                      | Change notebook                         |
+| `stamp foot`                                          | Show last 10 notes                      |
+| `stamp foot N` (e.g. `stamp foot 25`)                 | Show last N notes                       |
+| `stamp foot all`                                      | Show all notes                          |
+| `stamp notetime X` (1-based index)                    | Show timestamp of note #X               |
+| `stamp timenote Y` (e.g. `stamp timenote 2025-07-30`) | Show note whose timestamp starts with Y |
 
-A success message after each note looks like:
+For peace of mind, a message like this appears every time a note is added successfully:
 
 ```
 stamp success: page daily_log timestamp 2025-07-30 15:42:01 note fixed bug in…
@@ -70,14 +82,14 @@ stamp success: page daily_log timestamp 2025-07-30 15:42:01 note fixed bug in…
 
 ```
 bash
-pip install git+https://github.com/<user>/timestampr.git   # latest from GitHub
+pip install git+https://github.com/Donnie-McFarlane/timestampr.git
 ```
 
 ### 4.2 From source
 
 ```
 bash
-git clone https://github.com/<user>/timestampr.git
+git clone https://github.com/Donnie-McFarlane/timestampr.git
 cd timestampr
 pip install .
 ```
@@ -96,14 +108,14 @@ Packaging-time: *setuptools* (installed automatically by `pip`).
 | Item            | Location                             |
 | --------------- | ------------------------------------ |
 | User config     | `~/.timestampr/config.json`          |
-| Notebook folder | path provided in `stamp newnotebook` |
+| Notebook folder | path provided by `stamp newnotebook` |
 | Page files      | `<notebook>/<page>.csv`              |
 
 ---
 
 ## 7 Back-ups & syncing
 
-Because everything is plain text, simply back-up or sync your notebook folder (e.g. with Git, Dropbox, Syncthing, etc.).
+Because everything is plain text, simply back-up or sync your notebook folder (e.g. with Git, Dropbox, OneDrive, etc.).
 
 ---
 
@@ -115,4 +127,6 @@ pip uninstall timestampr        # removes the CLI tool
 rm -rf ~/.timestampr            # removes stored config (optional)
 ```
 
-Enjoy quick, timestamped note-taking!
+---
+
+Thanks for reading! I hope this little side-quest of mine helps you to stay organized and save a bit of time for yourself.

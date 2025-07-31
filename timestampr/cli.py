@@ -200,7 +200,7 @@ def search_notes(term: str) -> list[tuple[str, str, str]]:
 
 
 def cmd_show(arg: str | None) -> None:
-    """Display notes or timestamps from the active page."""
+    """Display notes and timestamps from the active page."""
     cfg = load_config()
     nb_path = ensure_notebook(cfg)
     page_path = ensure_page(cfg, nb_path)
@@ -245,8 +245,8 @@ def cmd_show(arg: str | None) -> None:
     if start > end:
         start, end = end, start
 
-    for d, t, _ in rows[start - 1 : end]:
-        print(f"{d} {t}")
+    for d, t, n in rows[start - 1 : end]:
+        print(f"{d} {t} {n}")
 
 
 def cmd_timenote(time_query: str) -> None:
@@ -329,16 +329,15 @@ def build_parser() -> argparse.ArgumentParser:
               active              show active notebook & page
               page                choose existing / new page
               notebook            choose existing / new notebook
-              show <idx>[ to <idx>]  show timestamp of note(s) at index/indices
-              show head           show first 10 notes
-              show foot           show last 10 notes
-              show all            show all notes (max 100 rows)
+              show <idx>          show note(s) at index or range
+              show head/foot/all  show first / last 10 notes or all (max 100)
               timenote <time>     show note(s) at <time> or within range
-              search <keyword>       search notes containing <keyword>
+              search <keyword>    search notes containing <keyword>
 
             Examples
             --------
               stamp - analysed sample DF17 by mass-spec
+              stamp show 15 to 20
               stamp show head
               stamp timenote 08:30 to 13:00
               stamp search DF17
@@ -376,7 +375,10 @@ def main(argv: list[str] | None = None) -> None:
     elif cmd == "notebook":
         change_notebook()
     elif cmd == "show":
-        cmd_show(" ".join(rest) if rest else None)
+        if not rest:
+            print("stamp failed. e.g. of valid args: head, foot, all, 27, or 5 to 10")
+            sys.exit(1)
+        cmd_show(" ".join(rest))
     elif cmd == "timenote":
         if not rest:
             print("stamp failed: supply time as HH:MM OR supply range as HH:MM to HH:MM")

@@ -124,22 +124,40 @@ def test_change_page(tmp_path, monkeypatch, _):
     assert cfg["page"] == "pg"
 
 @pytest.mark.parametrize("_", range(3))
-def test_cmd_foot(monkeypatch, capsys, _):
+def test_cmd_show_keywords(tmp_path, monkeypatch, capsys, _):
+    page = tmp_path / "notes.csv"
+    with page.open("w", newline="") as fh:
+        w = csv.writer(fh)
+        for i in range(15):
+            w.writerow([f"d{i}", f"t{i}", f"n{i}"])
     monkeypatch.setattr(cli, "load_config", lambda: {})
-    monkeypatch.setattr(cli, "ensure_notebook", lambda c: Path("."))
-    monkeypatch.setattr(cli, "ensure_page", lambda c, nb: Path("notes.csv"))
-    monkeypatch.setattr(cli, "tail", lambda p, n: [("d", "t", "n")])
-    cli.cmd_foot(None)
-    assert "t  n" in capsys.readouterr().out
+    monkeypatch.setattr(cli, "ensure_notebook", lambda c: tmp_path)
+    monkeypatch.setattr(cli, "ensure_page", lambda c, nb: page)
+    cli.cmd_show("head")
+    out = capsys.readouterr().out
+    assert "n0" in out and "n10" not in out
+    cli.cmd_show("foot")
+    out = capsys.readouterr().out
+    assert "n14" in out and "n4" not in out
+    cli.cmd_show("all")
+    out = capsys.readouterr().out
+    assert "n0" in out and "n14" in out
 
 @pytest.mark.parametrize("_", range(3))
-def test_cmd_notetime(monkeypatch, capsys, _):
+def test_cmd_show_indices(tmp_path, monkeypatch, capsys, _):
+    page = tmp_path / "notes.csv"
+    with page.open("w", newline="") as fh:
+        w = csv.writer(fh)
+        for i in range(5):
+            w.writerow([f"d{i}", f"t{i}", f"n{i}"])
     monkeypatch.setattr(cli, "load_config", lambda: {})
-    monkeypatch.setattr(cli, "ensure_notebook", lambda c: Path("."))
-    monkeypatch.setattr(cli, "ensure_page", lambda c, nb: Path("notes.csv"))
-    monkeypatch.setattr(cli, "tail", lambda p, n: [("d1", "t1", "a"), ("d2", "t2", "b")])
-    cli.cmd_notetime(2)
-    assert "t2" in capsys.readouterr().out
+    monkeypatch.setattr(cli, "ensure_notebook", lambda c: tmp_path)
+    monkeypatch.setattr(cli, "ensure_page", lambda c, nb: page)
+    cli.cmd_show("2")
+    assert "t1" in capsys.readouterr().out
+    cli.cmd_show("2 to 4")
+    out = capsys.readouterr().out
+    assert "t1" in out and "t3" in out
 
 @pytest.mark.parametrize("_", range(3))
 def test_cmd_timenote(tmp_path, monkeypatch, capsys, _):

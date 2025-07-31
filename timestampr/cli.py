@@ -199,34 +199,54 @@ def search_notes(term: str) -> list[tuple[str, str, str]]:
     return results
 
 
-def cmd_foot(n: str | None) -> None:
-    """Print the last ``n`` (or all) notes from the active page."""
+def cmd_show(arg: str | None) -> None:
+    """Display notes or timestamps from the active page."""
     cfg = load_config()
-    nb_path   = ensure_notebook(cfg)
+    nb_path = ensure_notebook(cfg)
     page_path = ensure_page(cfg, nb_path)
 
-    if n is None:
-        nrows = 10
-    elif n.lower() == "all":
-        nrows = None
-    else:
-        nrows = int(n)
+    rows: list[tuple[str, str, str]] = []
+    with page_path.open(newline="", encoding="utf-8") as fh:
+        rows = [(d, t, n) for d, t, n in csv.reader(fh)]
 
-    for date, tm, note in tail(page_path, nrows):
-        print(f"{date} {tm}  {note}")
+    def _print_rows(items: list[tuple[str, str, str]]) -> None:
+        for d, t, n in items:
+            print(f"{d} {t}  {n}")
 
+    if arg is None or arg.lower() == "foot":
+        _print_rows(rows[-10:])
+        return
+    if arg.lower() == "head":
+        _print_rows(rows[:10])
+        return
+    if arg.lower() == "all":
+        limit = 100
+        _print_rows(rows[:limit])
+        if len(rows) > limit:
+            print(f"... showing first {limit} of {len(rows)}")
+        return
 
-def cmd_notetime(idx: int) -> None:
-    """Print the timestamp of note number ``idx``."""
-    cfg = load_config()
-    nb_path   = ensure_notebook(cfg)
-    page_path = ensure_page(cfg, nb_path)
-    rows = tail(page_path, None)
     try:
-        date, tm, _ = rows[idx - 1]
-        print(f"{date} {tm}")
-    except IndexError:
+        if "to" in arg:
+            start_s, end_s = [s.strip() for s in arg.split("to", 1)]
+            start = int(start_s)
+            end = int(end_s)
+        else:
+            start = int(arg)
+            end = start
+    except ValueError:
+        print("stamp failed: invalid index")
+        return
+
+    if start < 1 or end < 1 or start > len(rows) or end > len(rows):
         print("stamp failed: note index out of range")
+        return
+
+    if start > end:
+        start, end = end, start
+
+    for d, t, _ in rows[start - 1 : end]:
+        print(f"{d} {t}")
 
 
 def cmd_timenote(time_query: str) -> None:
@@ -309,15 +329,17 @@ def build_parser() -> argparse.ArgumentParser:
               active              show active notebook & page
               page                choose existing / new page
               notebook            choose existing / new notebook
-              foot [n|all]        show last n (default 10) notes or all
-              notetime <idx>      show timestamp of note #idx (1‑based)
+              show <idx>[ to <idx>]  show timestamp of note(s) at index/indices
+              show head           show first 10 notes
+              show foot           show last 10 notes
+              show all            show all notes (max 100 rows)
               timenote <time>     show note(s) at <time> or within range
               search <keyword>       search notes containing <keyword>
 
             Examples
             --------
               stamp - analysed sample DF17 by mass-spec
-              stamp foot 25
+              stamp show head
               stamp timenote 08:30 to 13:00
               stamp search DF17
             """
@@ -353,13 +375,8 @@ def main(argv: list[str] | None = None) -> None:
         change_page()
     elif cmd == "notebook":
         change_notebook()
-    elif cmd == "foot":
-        cmd_foot(rest[0] if rest else None)
-    elif cmd == "notetime":
-        if not rest:
-            print("stamp failed: supply note index")
-            sys.exit(1)
-        cmd_notetime(int(rest[0]))
+    elif cmd == "show":
+        cmd_show(" ".join(rest) if rest else None)
     elif cmd == "timenote":
         if not rest:
             print("stamp failed: supply time as HH:MM OR supply range as HH:MM to HH:MM")

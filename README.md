@@ -62,10 +62,10 @@ stamp - inoculated flasks 7-9
 | `stamp active`                                        | Show active notebook & page             |
 | `stamp page`                                          | Change page                             |
 | `stamp notebook`                                      | Change notebook                         |
-| `stamp foot`                                          | Show last 10 notes                      |
-| `stamp foot N` (e.g. `stamp foot 25`)                 | Show last N notes                       |
-| `stamp foot all`                                      | Show all notes                          |
-| `stamp notetime X` (1-based index)                    | Show timestamp of note #X               |
+| `stamp show head`                                     | Show first 10 notes                      |
+| `stamp show foot`                                     | Show last 10 notes                       |
+| `stamp show all`                                      | Show all notes (max 100 rows)                          |
+| `stamp show N` or `stamp show N to M`                 | Show timestamp for note(s) by index               |
 | `stamp timenote Y` (e.g. `stamp timenote 08:30`)      | Show notes at time Y or range |
 | `stamp search text`                                   | Find notes containing `text` |
 

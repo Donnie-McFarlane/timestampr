@@ -25,10 +25,10 @@ If you were using `timestampr(CLI)`:
 `timestampr(CLI)` lets you jot ultra-quick notes from any terminal.\
 Each notebook is just a folder on your laptop;\
 Each page is a `.csv` file inside that folder;\
-Each line is simply:
+Each line is now:
 
 ```
-YYYY-MM-DD HH:MM:SS,Your note text…
+YYYY-MM-DD,HH:MM:SS,Your note text…
 ```
 
 Since it is plain text, you can easily **grep**, **sync to the cloud**, or **open in Excel**.
@@ -66,12 +66,13 @@ stamp - inoculated flasks 7-9
 | `stamp foot N` (e.g. `stamp foot 25`)                 | Show last N notes                       |
 | `stamp foot all`                                      | Show all notes                          |
 | `stamp notetime X` (1-based index)                    | Show timestamp of note #X               |
-| `stamp timenote Y` (e.g. `stamp timenote 2025-07-30`) | Show note whose timestamp starts with Y |
+| `stamp timenote Y` (e.g. `stamp timenote 08:30`)      | Show notes at time Y or range |
+| `stamp search text`                                   | Find notes containing `text` |
 
 For peace of mind, a message like this appears every time a note is added successfully:
 
 ```
-stamp success: page daily_log timestamp 2025-07-30 15:42:01 note fixed bug in…
+stamp success: daily_log 2025-07-30 15:42:01 fixed bug in…
 ```
 
 ---

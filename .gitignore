@@ -1,0 +1,7 @@
+# Byte-compiled / cache
+__pycache__/
+.pytest_cache/
+
+# Build artifacts
+build/
+*.egg-info/

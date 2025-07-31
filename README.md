@@ -4,7 +4,7 @@ A bare-bones note-taker that timestamps everything.
 
 ---
 
-## 0 Imagine:
+## 0 - Imagine
 
 Your notebook was laying open while you worked. You were multi-tasking. You were sporadically jotting down notes. You were working late to meet a deadline. Repeat ad nauseam. Now skip ahead a year or more. You need to write a grad thesis based on those notes.
 
@@ -20,7 +20,7 @@ If you were using `timestampr(CLI)`:
 
 ---
 
-## 1 What it does
+## 1 - What it does
 
 `timestampr(CLI)` lets you jot ultra-quick notes from any terminal.\
 Each notebook is just a folder on your laptop;\
@@ -35,7 +35,7 @@ Since it is plain text, you can easily **grep**, **sync to the cloud**, or **ope
 
 ---
 
-## 2 Quick start
+## 2 - Quick start
 
 ```
 bash
@@ -52,7 +52,7 @@ stamp - inoculated flasks 7-9
 
 ---
 
-## 3 Commands available
+## 3 - Commands available
 
 | Command & arguments                                   | Action                                  |
 | ----------------------------------------------------- | --------------------------------------- |
@@ -76,7 +76,7 @@ stamp success: page daily_log timestamp 2025-07-30 15:42:01 note fixed bug in…
 
 ---
 
-## 4 Installation
+## 4 - Installation
 
 ### 4.1 Using pip
 
@@ -96,14 +96,14 @@ pip install .
 
 ---
 
-## 5 Dependencies
+## 5 - Dependencies
 
 Runtime: **Python ≥ 3.8** and the **standard library** – no external packages required.\
 Packaging-time: *setuptools* (installed automatically by `pip`).
 
 ---
 
-## 6 File locations
+## 6 - File locations
 
 | Item            | Location                             |
 | --------------- | ------------------------------------ |
@@ -113,13 +113,13 @@ Packaging-time: *setuptools* (installed automatically by `pip`).
 
 ---
 
-## 7 Back-ups & syncing
+## 7 - Back-ups & syncing
 
 Because everything is plain text, simply back-up or sync your notebook folder (e.g. with Git, Dropbox, OneDrive, etc.).
 
 ---
 
-## 8 Uninstall
+## 8 - Uninstall
 
 ```
 bash
@@ -129,4 +129,4 @@ rm -rf ~/.timestampr            # removes stored config (optional)
 
 ---
 
-Thanks for reading! I hope this little side-quest of mine helps you to stay organized and save a bit of time for yourself.
+Thanks for reading! I hope my little side-quest here helps you to stay organized and save a bit of time for yourself.

@@ -25,7 +25,7 @@ If you were using `timestampr(CLI)`:
 `timestampr(CLI)` lets you jot ultra-quick notes from any terminal.\
 Each notebook is just a folder on your laptop;\
 Each page is a `.csv` file inside that folder;\
-Each line is now:
+Each line is:
 
 ```
 YYYY-MM-DD,HH:MM:SS,Your note text…

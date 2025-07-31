@@ -12,7 +12,7 @@ import argparse
 import csv
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, time
 from pathlib import Path
 from textwrap import dedent, shorten
 
@@ -20,15 +20,50 @@ from textwrap import dedent, shorten
 # Constants & helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-CONFIG_DIR   = Path.home() / ".timestampr"
-CONFIG_FILE  = CONFIG_DIR / "config.json"
-DEFAULT_FMT  = "%Y-%m-%d %H:%M:%S"          # timestamp format on disk
-MAX_PREVIEW  = 50                           # chars shown in success message
+CONFIG_DIR  = Path.home() / ".timestampr"
+CONFIG_FILE = CONFIG_DIR / "config.json"
+DATE_FMT    = "%Y-%m-%d"
+TIME_FMT    = "%H:%M:%S"
+DEFAULT_FMT = f"{DATE_FMT} {TIME_FMT}"
+MAX_PREVIEW = 50
 
 
-def now() -> str:
-    """Return current timestamp string in DEFAULT_FMT."""
-    return datetime.now().strftime(DEFAULT_FMT)
+def now() -> datetime:
+    """Return the current ``datetime``."""
+    return datetime.now()
+
+
+def _parse_time(value: str) -> tuple[time, bool]:
+    """Return (``time`` object, include_seconds) from ``value``."""
+    try:
+        return datetime.strptime(value, TIME_FMT).time(), True
+    except ValueError:
+        return datetime.strptime(value, "%H:%M").time(), False
+
+
+def _seconds(t: time) -> int:
+    """Return number of seconds past midnight for ``t``."""
+    return t.hour * 3600 + t.minute * 60 + t.second
+
+
+def _match_time(t1: time, t2: time, exact: bool) -> bool:
+    """Return ``True`` if ``t1`` matches ``t2`` respecting ``exact`` seconds."""
+    if exact:
+        return t1 == t2
+    return t1.hour == t2.hour and t1.minute == t2.minute
+
+
+def _in_range(t: time, start: time, end: time, exact: bool) -> bool:
+    """Return ``True`` if ``t`` is within ``start`` and ``end``."""
+    if exact:
+        s = _seconds(start)
+        e = _seconds(end)
+        v = _seconds(t)
+    else:
+        s = start.hour * 60 + start.minute
+        e = end.hour * 60 + end.minute
+        v = t.hour * 60 + t.minute
+    return s <= v <= e
 
 
 def load_config() -> dict:
@@ -93,11 +128,15 @@ def append_note(note_text: str) -> None:
 
     ts = now()
     with page_path.open("a", newline="", encoding="utf-8") as fh:
-        csv.writer(fh).writerow([ts, note_text])
+        csv.writer(fh).writerow([
+            ts.strftime(DATE_FMT),
+            ts.strftime(TIME_FMT),
+            note_text,
+        ])
 
     print(
-        f"stamp success: page {shorten(cfg['page'], MAX_PREVIEW)} "
-        f"timestamp {ts} note {shorten(note_text, MAX_PREVIEW)}"
+        f"stamp success: {shorten(cfg['page'], MAX_PREVIEW)} "
+        f"{ts.strftime(DEFAULT_FMT)} {shorten(note_text, MAX_PREVIEW)}"
     )
 
 
@@ -138,13 +177,26 @@ def change_page() -> None:
     print(f"Page changed to {pg}")
 
 
-def tail(page_path: Path, n: int | None) -> list[tuple[str, str]]:
+def tail(page_path: Path, n: int | None) -> list[tuple[str, str, str]]:
     """Return the last ``n`` rows from ``page_path`` (or all if ``n`` is ``None``)."""
-    rows: list[tuple[str, str]] = []
+    rows: list[tuple[str, str, str]] = []
     with page_path.open(newline="", encoding="utf-8") as fh:
-        for ts, note in csv.reader(fh):
-            rows.append((ts, note))
+        for date, tm, note in csv.reader(fh):
+            rows.append((date, tm, note))
     return rows[-n:] if isinstance(n, int) else rows
+
+
+def search_notes(term: str) -> list[tuple[str, str, str]]:
+    """Return rows from the active page containing ``term``."""
+    cfg = load_config()
+    nb_path = ensure_notebook(cfg)
+    page_path = ensure_page(cfg, nb_path)
+    results: list[tuple[str, str, str]] = []
+    with page_path.open(newline="", encoding="utf-8") as fh:
+        for date, tm, note in csv.reader(fh):
+            if term in note:
+                results.append((date, tm, note))
+    return results
 
 
 def cmd_foot(n: str | None) -> None:
@@ -160,8 +212,8 @@ def cmd_foot(n: str | None) -> None:
     else:
         nrows = int(n)
 
-    for ts, note in tail(page_path, nrows):
-        print(f"{ts}  {note}")
+    for date, tm, note in tail(page_path, nrows):
+        print(f"{date} {tm}  {note}")
 
 
 def cmd_notetime(idx: int) -> None:
@@ -169,26 +221,72 @@ def cmd_notetime(idx: int) -> None:
     cfg = load_config()
     nb_path   = ensure_notebook(cfg)
     page_path = ensure_page(cfg, nb_path)
-    rows      = tail(page_path, None)
+    rows = tail(page_path, None)
     try:
-        ts, _ = rows[idx - 1]
-        print(ts)
+        date, tm, _ = rows[idx - 1]
+        print(f"{date} {tm}")
     except IndexError:
         print("stamp failed: note index out of range")
 
 
-def cmd_timenote(ts_query: str) -> None:
-    """Print the note whose timestamp starts with ``ts_query``."""
+def cmd_timenote(time_query: str) -> None:
+    """Print notes for ``time_query``.
+
+    ``time_query`` may be a single time (``HH:MM`` or ``HH:MM:SS``) or a
+    range separated by ``to``. Seconds are matched only if explicitly supplied.
+    """
     cfg = load_config()
-    nb_path   = ensure_notebook(cfg)
+    nb_path = ensure_notebook(cfg)
     page_path = ensure_page(cfg, nb_path)
 
+    rows: list[tuple[datetime, str]] = []
     with page_path.open(newline="", encoding="utf-8") as fh:
-        for ts, note in csv.reader(fh):
-            if ts.startswith(ts_query):
-                print(note)
-                return
-    print("stamp failed: timestamp not found")
+        for date, tm, note in csv.reader(fh):
+            rows.append((datetime.strptime(f"{date} {tm}", DEFAULT_FMT), note))
+
+    def _closest(before_list: list[tuple[datetime, str]], after_list: list[tuple[datetime, str]]) -> None:
+        if before_list:
+            dt, note = max(before_list, key=lambda r: r[0])
+            print(f"{dt.strftime(DEFAULT_FMT)}  {note}")
+        else:
+            print("no notes before")
+        if after_list:
+            dt, note = min(after_list, key=lambda r: r[0])
+            print(f"{dt.strftime(DEFAULT_FMT)}  {note}")
+        else:
+            print("no notes after")
+
+    if "to" in time_query:
+        start_s, end_s = [s.strip() for s in time_query.split("to", 1)]
+        start_t, s_exact = _parse_time(start_s)
+        end_t, e_exact = _parse_time(end_s)
+        exact = s_exact or e_exact
+        matches = [
+            (dt, note)
+            for dt, note in rows
+            if _in_range(dt.time(), start_t, end_t, exact)
+        ]
+        if matches:
+            for dt, note in matches:
+                print(f"{dt.strftime(DEFAULT_FMT)}  {note}")
+            return
+        before = [r for r in rows if _seconds(r[0].time()) < _seconds(start_t)]
+        after = [r for r in rows if _seconds(r[0].time()) > _seconds(end_t)]
+        _closest(before, after)
+    else:
+        t, exact = _parse_time(time_query)
+        matches = [
+            (dt, note)
+            for dt, note in rows
+            if _match_time(dt.time(), t, exact)
+        ]
+        if matches:
+            for dt, note in matches:
+                print(f"{dt.strftime(DEFAULT_FMT)}  {note}")
+            return
+        before = [r for r in rows if _seconds(r[0].time()) < _seconds(t)]
+        after = [r for r in rows if _seconds(r[0].time()) > _seconds(t)]
+        _closest(before, after)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -213,13 +311,15 @@ def build_parser() -> argparse.ArgumentParser:
               notebook            choose existing / new notebook
               foot [n|all]        show last n (default 10) notes or all
               notetime <idx>      show timestamp of note #idx (1‑based)
-              timenote <ts>       show note whose timestamp starts with <ts>
+              timenote <time>     show note(s) at <time> or within range
+              search <text>       search notes containing <text>
 
             Examples
             --------
               stamp - fixed bug in parser
               stamp foot 25
-              stamp timenote 2025-07-30
+              stamp timenote 08:30
+              stamp search parser
             """
         ),
     )
@@ -262,9 +362,15 @@ def main(argv: list[str] | None = None) -> None:
         cmd_notetime(int(rest[0]))
     elif cmd == "timenote":
         if not rest:
-            print("stamp failed: supply timestamp prefix")
+            print("stamp failed: supply time or range")
             sys.exit(1)
-        cmd_timenote(rest[0])
+        cmd_timenote(" ".join(rest))
+    elif cmd == "search":
+        if not rest:
+            print("stamp failed: supply search text")
+            sys.exit(1)
+        for d, t, n in search_notes(" ".join(rest)):
+            print(f"{d} {t}  {n}")
     else:
         print(f"stamp failed: unknown command '{cmd}'")
         build_parser().print_help()

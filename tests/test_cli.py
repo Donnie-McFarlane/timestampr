@@ -22,8 +22,8 @@ def _fake_input(value):
 @pytest.mark.parametrize("_", range(3))
 def test_now(_):
     ts = cli.now()
-    datetime.strptime(ts, cli.DEFAULT_FMT)
-    assert len(ts) == len(datetime.now().strftime(cli.DEFAULT_FMT))
+    assert isinstance(ts, datetime)
+    assert ts.strftime(cli.DEFAULT_FMT)
 
 @pytest.mark.parametrize("data", [{}, {"a": 1}, {"foo": "bar"}])
 def test_load_save_config(tmp_path, monkeypatch, data):
@@ -86,7 +86,7 @@ def test_append_note(tmp_path, monkeypatch, _):
     monkeypatch.setattr(cli, "save_config", lambda c: None)
     cli.append_note("test")
     rows = list(csv.reader(open(tmp_path / "p.csv")))
-    assert rows[-1][1] == "test"
+    assert rows[-1][2] == "test"
 
 @pytest.mark.parametrize("_", range(3))
 def test_tail(tmp_path, _):
@@ -94,7 +94,7 @@ def test_tail(tmp_path, _):
     with path.open("w", newline="") as fh:
         writer = csv.writer(fh)
         for i in range(5):
-            writer.writerow([f"t{i}", f"n{i}"])
+            writer.writerow([f"d{i}", f"t{i}", f"n{i}"])
     assert len(cli.tail(path, 2)) == 2
     assert len(cli.tail(path, None)) == 5
 
@@ -128,7 +128,7 @@ def test_cmd_foot(monkeypatch, capsys, _):
     monkeypatch.setattr(cli, "load_config", lambda: {})
     monkeypatch.setattr(cli, "ensure_notebook", lambda c: Path("."))
     monkeypatch.setattr(cli, "ensure_page", lambda c, nb: Path("notes.csv"))
-    monkeypatch.setattr(cli, "tail", lambda p, n: [("t", "n")])
+    monkeypatch.setattr(cli, "tail", lambda p, n: [("d", "t", "n")])
     cli.cmd_foot(None)
     assert "t  n" in capsys.readouterr().out
 
@@ -137,7 +137,7 @@ def test_cmd_notetime(monkeypatch, capsys, _):
     monkeypatch.setattr(cli, "load_config", lambda: {})
     monkeypatch.setattr(cli, "ensure_notebook", lambda c: Path("."))
     monkeypatch.setattr(cli, "ensure_page", lambda c, nb: Path("notes.csv"))
-    monkeypatch.setattr(cli, "tail", lambda p, n: [("t1", "a"), ("t2", "b")])
+    monkeypatch.setattr(cli, "tail", lambda p, n: [("d1", "t1", "a"), ("d2", "t2", "b")])
     cli.cmd_notetime(2)
     assert "t2" in capsys.readouterr().out
 
@@ -146,10 +146,20 @@ def test_cmd_timenote(tmp_path, monkeypatch, capsys, _):
     monkeypatch.setattr(cli, "load_config", lambda: {})
     monkeypatch.setattr(cli, "ensure_notebook", lambda c: tmp_path)
     page = tmp_path / "notes.csv"
-    page.write_text("t,note\n")
+    page.write_text("2025-01-01,08:30:00,note\n")
     monkeypatch.setattr(cli, "ensure_page", lambda c, nb: page)
-    cli.cmd_timenote("t")
+    cli.cmd_timenote("08:30")
     assert "note" in capsys.readouterr().out
+
+@pytest.mark.parametrize("_", range(3))
+def test_search_notes(tmp_path, monkeypatch, _):
+    cfg = {"notebook": str(tmp_path), "page": "p"}
+    f = tmp_path / "p.csv"
+    f.write_text("2025-01-01,08:00:00,alpha\n2025-01-01,09:00:00,beta\n")
+    monkeypatch.setattr(cli, "load_config", lambda: cfg)
+    monkeypatch.setattr(cli, "save_config", lambda c: None)
+    results = cli.search_notes("beta")
+    assert results == [("2025-01-01", "09:00:00", "beta")]
 
 @pytest.mark.parametrize("_", range(3))
 def test_build_parser(_):

@@ -19,7 +19,9 @@ This document explains repository structure, coding conventions, and the workflo
 
 1. **Python ≥ 3.8**; stick to the standard library – no external runtime deps.
 2. Every new function must have a docstring.
-3. Run `python -m pip install -e .[dev]` then `pytest` (future test suite).
+3. **Before committing**, run `python -m pip install -e .[dev]` then `pytest`.
+   Once tests pass with no errors, update all documentation that references the
+   changed functionality.
 4. Preserve backward compatibility of the CLI interface listed in `README.md`.
 5. User config lives at `~/.timestampr/config.json`; do **NOT** move or rename this without a major version bump.
 
@@ -93,5 +95,10 @@ No runtime network access is necessary.
 
 * Split README_and_AGENTS.md into README.md and AGENTS.md; removed old README
 * Added initial test suite and updated docs
+* No issues
+
+## 2025-07-30  @Donnie
+
+* Reworked README intro and command table; other minor wording fixes
 * No issues
 

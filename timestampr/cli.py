@@ -312,14 +312,14 @@ def build_parser() -> argparse.ArgumentParser:
               foot [n|all]        show last n (default 10) notes or all
               notetime <idx>      show timestamp of note #idx (1‑based)
               timenote <time>     show note(s) at <time> or within range
-              search <text>       search notes containing <text>
+              search <keyword>       search notes containing <keyword>
 
             Examples
             --------
-              stamp - fixed bug in parser
+              stamp - analysed sample DF17 by mass-spec
               stamp foot 25
-              stamp timenote 08:30
-              stamp search parser
+              stamp timenote 08:30 to 13:00
+              stamp search DF17
             """
         ),
     )
@@ -362,12 +362,12 @@ def main(argv: list[str] | None = None) -> None:
         cmd_notetime(int(rest[0]))
     elif cmd == "timenote":
         if not rest:
-            print("stamp failed: supply time or range")
+            print("stamp failed: supply time as HH:MM OR supply range as HH:MM to HH:MM")
             sys.exit(1)
         cmd_timenote(" ".join(rest))
     elif cmd == "search":
         if not rest:
-            print("stamp failed: supply search text")
+            print("stamp failed: supply search keyword")
             sys.exit(1)
         for d, t, n in search_notes(" ".join(rest)):
             print(f"{d} {t}  {n}")

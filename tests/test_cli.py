@@ -190,3 +190,65 @@ def test_main_help(monkeypatch, capsys, _):
     with pytest.raises(SystemExit):
         cli.main()
     assert "Commands" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("_", range(3))
+def test_main_add_note(monkeypatch, _):
+    called = {}
+    monkeypatch.setattr(cli, "append_note", lambda text: called.setdefault("note", []).append(text))
+    monkeypatch.setattr(sys, "argv", ["prog", "-", "hello"])
+    cli.main()
+    assert called.get("note") == ["hello"]
+
+
+@pytest.mark.parametrize("_", range(3))
+def test_main_active(monkeypatch, _):
+    called = {}
+    monkeypatch.setattr(cli, "show_active", lambda: called.setdefault("active", True))
+    monkeypatch.setattr(sys, "argv", ["prog", "active"])
+    cli.main()
+    assert called.get("active")
+
+
+@pytest.mark.parametrize("_", range(3))
+def test_main_page(monkeypatch, _):
+    called = {}
+    monkeypatch.setattr(cli, "change_page", lambda: called.setdefault("page", True))
+    monkeypatch.setattr(sys, "argv", ["prog", "page"])
+    cli.main()
+    assert called.get("page")
+
+
+@pytest.mark.parametrize("_", range(3))
+def test_main_notebook(monkeypatch, _):
+    called = {}
+    monkeypatch.setattr(cli, "change_notebook", lambda: called.setdefault("nb", True))
+    monkeypatch.setattr(sys, "argv", ["prog", "notebook"])
+    cli.main()
+    assert called.get("nb")
+
+
+@pytest.mark.parametrize("_", range(3))
+def test_main_show(monkeypatch, _):
+    called = {}
+    monkeypatch.setattr(cli, "cmd_show", lambda arg: called.setdefault("show", arg))
+    monkeypatch.setattr(sys, "argv", ["prog", "show", "head"])
+    cli.main()
+    assert called.get("show") == "head"
+
+
+@pytest.mark.parametrize("_", range(3))
+def test_main_timenote(monkeypatch, _):
+    called = {}
+    monkeypatch.setattr(cli, "cmd_timenote", lambda arg: called.setdefault("tn", arg))
+    monkeypatch.setattr(sys, "argv", ["prog", "timenote", "08:00"])
+    cli.main()
+    assert called.get("tn") == "08:00"
+
+
+@pytest.mark.parametrize("_", range(3))
+def test_main_search(monkeypatch, capsys, _):
+    monkeypatch.setattr(cli, "search_notes", lambda term: [("d", "t", "n")])
+    monkeypatch.setattr(sys, "argv", ["prog", "search", "foo"])
+    cli.main()
+    assert "d t  n" in capsys.readouterr().out

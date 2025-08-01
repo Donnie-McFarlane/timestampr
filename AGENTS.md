@@ -109,3 +109,9 @@ No runtime network access is necessary.
 * Updated tests and README
 * No issues
 
+## 2025-08-01  @assistant
+
+* Expanded CLI tests after removing `newpage`/`newnotebook` commands
+  - ensures dispatch for all remaining commands
+* No issues
+

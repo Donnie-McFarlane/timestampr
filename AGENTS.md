@@ -121,3 +121,10 @@ No runtime network access is necessary.
 * Verified Windows compatibility
 * No issues
 
+
+## 2025-08-01  @assistant
+
+* Added helper `_read_note_from_stdin_or_prompt` and updated CLI to accept piped or interactive notes
+* Documented quoting and piping special characters in README
+* Added tests covering new helper and dash behavior
+* No issues

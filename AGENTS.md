@@ -115,3 +115,9 @@ No runtime network access is necessary.
   - ensures dispatch for all remaining commands
 * No issues
 
+## 2025-08-01  @assistant
+
+* Documented Windows installation and config path
+* Verified Windows compatibility
+* No issues
+

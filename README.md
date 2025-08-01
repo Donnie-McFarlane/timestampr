@@ -41,10 +41,10 @@ Since it is plain text, you can easily **grep**, **sync to the cloud**, or **ope
 ```
 bash
 # 1. pick or create a folder for your notebook
-stamp newnotebook              # will ask for the path
+stamp notebook              # will ask for the path
 
 # 2. pick or create a page
-stamp newpage                  # name it or press <Enter> for an auto-dated page
+stamp page                  # name it or press <Enter> for an auto-dated page
 
 # 3. write notes
 stamp - fixed issue #42
@@ -106,7 +106,7 @@ Packaging-time: *setuptools* (installed automatically by `pip`).
 | Item            | Location                             |
 | --------------- | ------------------------------------ |
 | User config     | `~/.timestampr/config.json`          |
-| Notebook folder | path provided by `stamp newnotebook` |
+| Notebook folder | path provided by `stamp notebook` |
 | Page files      | `<notebook>/<page>.csv`              |
 
 ---

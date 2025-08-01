@@ -1,0 +1,50 @@
+name: Check tag matches pyproject version
+
+on:
+  push:
+    tags:
+      - 'v*'
+  release:
+    types: [created, published]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Read version from pyproject.toml
+        id: pyver
+        run: |
+          python - <<'PY'
+          import os, pathlib
+          try:
+              import tomllib  # Python 3.11+
+          except ModuleNotFoundError:
+              import tomli as tomllib  # Fallback if needed
+          data = tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8'))
+          v = data['project']['version']
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
+              f.write(f"version={v}\n")
+          print("pyproject version:", v)
+          PY
+
+      - name: Compare tag to version
+        env:
+          TAG: ${{ github.ref_name }}
+          VERS: ${{ steps.pyver.outputs.version }}
+        run: |
+          echo "Tag: $TAG  |  pyproject: $VERS"
+          TAG_NO_V="${TAG#v}"
+          if [ "$TAG_NO_V" != "$VERS" ]; then
+            echo "::error::Tag ($TAG) does not match pyproject version ($VERS)."
+            exit 1
+          fi

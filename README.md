@@ -76,15 +76,32 @@ stamp success: wetlab_log 2025-07-30 15:42:01 inoculated all flasks for overnigh
 
 ## 4 - Installation
 
-### 4.1 Using pip
+### 4.1 Windows
+
+#### Using pip
+
+```
+py -m pip install git+https://github.com/Donnie-McFarlane/timestampr.git
+```
+
+#### From source
+
+```
+git clone https://github.com/Donnie-McFarlane/timestampr.git
+cd timestampr
+py -m pip install .
+```
+
+### 4.2 Mac / Linux
+
+#### Using pip
 
 ```
 bash
 pip install git+https://github.com/Donnie-McFarlane/timestampr.git
 ```
-On Windows you may need to use `py -m pip` instead of `pip`.
 
-### 4.2 From source
+#### From source
 
 ```
 bash
@@ -92,7 +109,6 @@ git clone https://github.com/Donnie-McFarlane/timestampr.git
 cd timestampr
 pip install .
 ```
-Again, Windows users can run `py -m pip install .` if needed.
 
 ---
 
@@ -100,8 +116,7 @@ Again, Windows users can run `py -m pip install .` if needed.
 
 Runtime: **Python ≥ 3.8** and the **standard library** – no external packages required.\
 Packaging-time: *setuptools* (installed automatically by `pip`). The CLI works
-on Linux, macOS **and Windows** so long as a compatible Python interpreter is
-available.
+on Linux, macOS and Windows when a compatible Python interpreter is available.
 
 ---
 
@@ -109,7 +124,7 @@ available.
 
 | Item            | Location                             |
 | --------------- | ------------------------------------ |
-| User config     | `~/.timestampr/config.json` (on Windows: `C:\\Users\\<you>\\.timestampr\\config.json`) |
+| User config     | `~/.timestampr/config.json` (on Windows: `C:\Users\<you>\.timestampr\config.json`) |
 | Notebook folder | path provided by `stamp notebook` |
 | Page files      | `<notebook>/<page>.csv`              |
 
@@ -123,10 +138,19 @@ Because everything is plain text, simply back-up or sync your notebook folder (e
 
 ## 8 - Uninstall
 
+### 8.1 Windows
+
+```
+py -m pip  uninstall timestampr        # removes the CLI tool
+rm -rf ~/.timestampr                   # removes stored config
+```
+
+### 8.2 Mac / Linux
+
 ```
 bash
 pip uninstall timestampr        # removes the CLI tool
-rm -rf ~/.timestampr            # removes stored config (optional)
+rm -rf ~/.timestampr            # removes stored config
 ```
 
 ---

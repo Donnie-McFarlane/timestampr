@@ -1,0 +1,64 @@
+name: Prepare Release (bump, tag, release)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.3)'
+        required: true
+
+permissions:
+  contents: write  # required to push and create release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version format
+        run: |
+          if ! echo "${{ inputs.version }}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Invalid version. Use SemVer like 1.0.3"
+            exit 1
+          fi
+
+      - name: Bump version in pyproject.toml
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          python - <<'PY'
+          import os, re, pathlib
+          version = os.environ["VERSION"]
+          p = pathlib.Path("pyproject.toml")
+          s = p.read_text(encoding="utf-8")
+          s, n = re.subn(r'(?m)^version\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"', f'version = "{version}"', s)
+          if n == 0:
+              raise SystemExit("Did not find a version line in pyproject.toml")
+          p.write_text(s, encoding="utf-8")
+          print("Updated pyproject.toml ->", version)
+          PY
+
+      - name: Commit version bump
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml
+          git commit -m "chore: bump version to ${{ inputs.version }}"
+          git push origin HEAD:main
+
+      - name: Create tag
+        run: |
+          git tag v${{ inputs.version }}
+          git push origin v${{ inputs.version }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          name: v${{ inputs.version }}
+          body: "Automated release for v${{ inputs.version }}."

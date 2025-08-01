@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import sys
+import sys  # needed for stdin detection
 from datetime import datetime, time
 from pathlib import Path
 from textwrap import dedent, shorten
@@ -27,6 +27,20 @@ TIME_FMT    = "%H:%M:%S"
 DEFAULT_FMT = f"{DATE_FMT} {TIME_FMT}"
 MAX_PREVIEW = 50
 
+
+def _read_note_from_stdin_or_prompt() -> str:
+    """
+    Read a note without shell parsing issues:
+    - If stdin is piped, read it entirely (strip trailing newline).
+    - Otherwise prompt for a single line.
+    """
+    try:
+        is_tty = sys.stdin.isatty()
+    except Exception:
+        is_tty = True
+    if not is_tty:
+        return sys.stdin.read().rstrip("\n")
+    return input("note> ")
 
 def now() -> datetime:
     """Return the current ``datetime``."""
@@ -356,9 +370,10 @@ def main(argv: list[str] | None = None) -> None:
     # Leading "-" means "new note"
     if argv[0] == "-":
         if len(argv) == 1:
-            print("stamp failed: no note text supplied")
-            sys.exit(1)
-        append_note(" ".join(argv[1:]))
+            note_text = _read_note_from_stdin_or_prompt()
+        else:
+            note_text = " ".join(argv[1:])
+        append_note(note_text)
         return
 
     cmd, *rest = argv

@@ -72,6 +72,51 @@ For peace of mind, a message like this appears every time a note is added succes
 stamp success: wetlab_log 2025-07-30 15:42:01 inoculated all flasks for overnight culture…
 ```
 
+### 3.1 Special Characters (PowerShell / CMD / Bash)
+
+Some characters like `&`, `|`, `(`, `)`, `{`, `}`, `[`, `]`, `"`, `,`, `#`, and `@` are interpreted by your shell before `stamp` sees them. Use one of the approaches below:
+
+#### Easiest: interactive entry
+
+```
+stamp -
+note> fix @mentions & quotes "double", hash #, pipe |, braces { } [ ] ( ) , commas
+```
+
+#### Pipe the note via stdin
+
+```
+printf '%s' 'ALL SPECIALS: # & " @ ( { [ | , } ] ) ^ ~ ! $ % * +' | stamp -
+```
+
+#### PowerShell
+
+Use single quotes for literal text and double a single quote inside:
+
+```
+stamp - 'fix @mentions & quotes "double", hash #, pipe |, braces { } [ ] ( ) , commas'
+stamp - 'Don''t break single quotes'
+```
+
+#### Windows CMD
+
+Prefer interactive mode (`stamp -`) or escape operators with `^` when using quotes:
+
+```
+stamp - "fix @mentions & quotes ""double"", hash #, pipe ^|, braces { } [ ] ( ) , commas"
+```
+
+#### Bash / Zsh
+
+Use single quotes for literal text; escape a single quote by closing and reopening:
+
+```
+stamp - 'fix @mentions & quotes "double", hash #, pipe |, braces { } [ ] ( ) , commas'
+stamp - 'Don'\''t break single quotes'
+```
+
+> CSV safety: Notes are saved with `csv.writer`, so commas and quotes are handled correctly.
+
 ---
 
 ## 4 - Installation

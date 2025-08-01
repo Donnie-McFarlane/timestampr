@@ -324,14 +324,12 @@ def build_parser() -> argparse.ArgumentParser:
             Commands
             --------
               - <note>            append <note> to active page
-              newpage             create / switch page
-              newnotebook         create / switch notebook
               active              show active notebook & page
               page                choose existing / new page
               notebook            choose existing / new notebook
-              show <idx>          show note(s) at index or range
+              show <idx>          show note(s) at index or within range <M to N>
               show head/foot/all  show first / last 10 notes or all (max 100)
-              timenote <time>     show note(s) at <time> or within range
+              timenote <time>     show note(s) at <time> or within range <HH:MM to HH:MM>
               search <keyword>    search notes containing <keyword>
 
             Examples
@@ -364,11 +362,7 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     cmd, *rest = argv
-    if cmd == "newpage":
-        change_page()
-    elif cmd == "newnotebook":
-        change_notebook()
-    elif cmd == "active":
+    if cmd == "active":
         show_active()
     elif cmd == "page":
         change_page()

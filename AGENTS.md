@@ -102,3 +102,10 @@ No runtime network access is necessary.
 * Reworked README intro and command table; other minor wording fixes
 * No issues
 
+## 2025-08-01  @assistant
+
+* Added `show` command replacing `foot` and `notetime`
+  - supports index ranges and head/foot/all keywords
+* Updated tests and README
+* No issues
+

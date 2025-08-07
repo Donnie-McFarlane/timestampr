@@ -47,8 +47,8 @@ stamp notebook              # will ask for the path
 stamp page                  # name it or press <Enter> for an auto-dated page
 
 # 3. write notes
-stamp - fixed issue #42
-stamp - inoculated flasks 7-9
+stamp - fixed issues 42-43
+stamp - inoculated flask `#16
 ```
 
 ---
@@ -63,8 +63,8 @@ stamp - inoculated flasks 7-9
 | `stamp notebook`                                      | Change notebook                         |
 | `stamp show ...` (`head` / `foot` / `all` / `first` / `last`) | Show notes (first/last 10, all, or very first/last) |
 | `stamp show N` (e.g. `stamp show 27`)                 | Show notes at index `N` (or range `N to M`) |
-| `stamp times query` (e.g. `stamp times 08:30`, `stamp times from 08:00 to 09:00`) | Show notes by time/date |
-| `stamp clock 12h|24h`                                 | Convert page times to 12h or 24h format |
+| `stamp times query` (e.g. `stamp times from 08:00 to 13:00`) | Show notes in range (by dates and/or times) |
+| `stamp clock ...` (`12h` / `24h`)                     | Convert timestamps on active page to 12h or 24h format |
 | `stamp search keyword`                                | Search notes containing `keyword` (case-insensitive) |
 
 For peace of mind, a message like this appears every time a note is added successfully:
@@ -73,10 +73,19 @@ For peace of mind, a message like this appears every time a note is added succes
 stamp success: wetlab_log 2025-07-30 15:42:01 inoculated all flasks for overnight culture…
 ```
 
-### 3.1 Special Characters (PowerShell / CMD / Bash)
+---
 
-The following characters are accepted without quoting: `. ! ? / \ - _ = + : [ ] % ^ * ~`.
-Other characters must be preceded by a backtick `` ` `` including `, ; ' ( ) { } | @ # $ & < >`. Double quotation marks are not supported; use single `'` quotes when needed.
+### 3.1 Special characters: escaping
+
+#### Basic use: backticks (tested in PowerShell)
+
+The following characters are accepted without any fuss: `. ! ? / \ - _ = + : [ ] % ^ * ~`.\
+Other characters can be used if preceded by a backtick `` ` `` including `, ; ' ( ) { } | @ # $ & < >`.\
+Use single `'` quotes when needed. Double quotation marks are not escaped with backticks.
+
+---
+
+### 3.2 Special characters: alternative approaches
 
 Some characters like `&`, `|`, `(`, `)`, `{`, `}`, `[`, `]`, and others are interpreted by your shell before `stamp` sees them. Use one of the approaches below:
 

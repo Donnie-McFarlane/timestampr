@@ -12,9 +12,10 @@ import argparse
 import csv
 import json
 import sys  # needed for stdin detection
-from datetime import datetime, time
+from datetime import datetime, time, date
 from pathlib import Path
 from textwrap import dedent, shorten
+import re
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants & helpers
@@ -26,6 +27,9 @@ DATE_FMT    = "%Y-%m-%d"
 TIME_FMT    = "%H:%M:%S"
 DEFAULT_FMT = f"{DATE_FMT} {TIME_FMT}"
 MAX_PREVIEW = 50
+
+# Time format constants
+TWELVE_FMT  = "%I:%M:%S.%p"
 
 
 def _read_note_from_stdin_or_prompt() -> str:
@@ -45,6 +49,41 @@ def _read_note_from_stdin_or_prompt() -> str:
 def now() -> datetime:
     """Return the current ``datetime``."""
     return datetime.now()
+
+
+def _time_from_any(value: str) -> time:
+    """Return a ``time`` parsed from 12h or 24h formats."""
+    value = value.strip().upper().replace(".", "")
+    for fmt in ("%H:%M:%S", "%H:%M", "%I:%M:%S%p", "%I:%M%p"):
+        try:
+            return datetime.strptime(value, fmt).time()
+        except ValueError:
+            continue
+    raise ValueError("invalid time format")
+
+
+def _to_12h(t: time) -> str:
+    """Return ``t`` formatted as ``HH:MM:SS.AM``."""
+    return t.strftime(TWELVE_FMT)
+
+
+def _to_24h(t: time) -> str:
+    """Return ``t`` formatted as ``HH:MM:SS``."""
+    return t.strftime(TIME_FMT)
+
+
+def _parse_input(value: str) -> tuple[date | None, time | None]:
+    """Parse ``value`` extracting optional date and time."""
+    date_pat = re.compile(r"\d{4}[-/]\d{2}[-/]\d{2}")
+    time_pat = re.compile(r"\d{1,2}:\d{2}(?::\d{2})?(?:\.[AP]M)?", re.IGNORECASE)
+    d_match = date_pat.search(value)
+    t_match = time_pat.search(value)
+    d = None
+    if d_match:
+        d_str = d_match.group().replace("/", "-")
+        d = datetime.strptime(d_str, DATE_FMT).date()
+    t = _time_from_any(t_match.group()) if t_match else None
+    return d, t
 
 
 def _parse_time(value: str) -> tuple[time, bool]:
@@ -140,9 +179,18 @@ def append_note(note_text: str) -> None:
     nb_path = ensure_notebook(cfg)
     page_path = ensure_page(cfg, nb_path)
 
+    # ensure note is single line
+    note_text = note_text.replace("\n", " ").replace("\r", " ")
+
     ts = now()
+    # determine next index
+    idx = 1
+    if page_path.stat().st_size > 0:
+        with page_path.open(newline="", encoding="utf-8") as fh:
+            idx = sum(1 for _ in csv.reader(fh)) + 1
     with page_path.open("a", newline="", encoding="utf-8") as fh:
         csv.writer(fh).writerow([
+            idx,
             ts.strftime(DATE_FMT),
             ts.strftime(TIME_FMT),
             note_text,
@@ -159,7 +207,14 @@ def show_active() -> None:
     cfg = load_config()
     nb = cfg.get("notebook", "<unset>")
     pg = cfg.get("page", "<unset>")
-    print(f"Active notebook: {nb}\nActive page: {pg}")
+    log_count = 0
+    nb_path = Path(nb) if nb != "<unset>" else None
+    if nb_path and pg != "<unset>":
+        page_path = nb_path / f"{pg}.csv"
+        if page_path.exists():
+            with page_path.open(newline="", encoding="utf-8") as fh:
+                log_count = sum(1 for _ in csv.reader(fh))
+    print(f"Active notebook: {nb}\nActive page: {pg}\nTotal logs: {log_count}")
 
 
 def change_notebook() -> None:
@@ -191,25 +246,26 @@ def change_page() -> None:
     print(f"Page changed to {pg}")
 
 
-def tail(page_path: Path, n: int | None) -> list[tuple[str, str, str]]:
+def tail(page_path: Path, n: int | None) -> list[tuple[str, str, str, str]]:
     """Return the last ``n`` rows from ``page_path`` (or all if ``n`` is ``None``)."""
-    rows: list[tuple[str, str, str]] = []
+    rows: list[tuple[str, str, str, str]] = []
     with page_path.open(newline="", encoding="utf-8") as fh:
-        for date, tm, note in csv.reader(fh):
-            rows.append((date, tm, note))
+        for idx, date, tm, note in csv.reader(fh):
+            rows.append((idx, date, tm, note))
     return rows[-n:] if isinstance(n, int) else rows
 
 
-def search_notes(term: str) -> list[tuple[str, str, str]]:
-    """Return rows from the active page containing ``term``."""
+def search_notes(term: str) -> list[tuple[str, str, str, str]]:
+    """Return rows from the active page containing ``term`` (case-insensitive)."""
     cfg = load_config()
     nb_path = ensure_notebook(cfg)
     page_path = ensure_page(cfg, nb_path)
-    results: list[tuple[str, str, str]] = []
+    results: list[tuple[str, str, str, str]] = []
+    term_l = term.lower()
     with page_path.open(newline="", encoding="utf-8") as fh:
-        for date, tm, note in csv.reader(fh):
-            if term in note:
-                results.append((date, tm, note))
+        for idx, d, tm, note in csv.reader(fh):
+            if term_l in note.lower():
+                results.append((idx, d, tm, note))
     return results
 
 
@@ -219,13 +275,13 @@ def cmd_show(arg: str | None) -> None:
     nb_path = ensure_notebook(cfg)
     page_path = ensure_page(cfg, nb_path)
 
-    rows: list[tuple[str, str, str]] = []
+    rows: list[tuple[str, str, str, str]] = []
     with page_path.open(newline="", encoding="utf-8") as fh:
-        rows = [(d, t, n) for d, t, n in csv.reader(fh)]
+        rows = [(i, d, t, n) for i, d, t, n in csv.reader(fh)]
 
-    def _print_rows(items: list[tuple[str, str, str]]) -> None:
-        for d, t, n in items:
-            print(f"{d} {t}  {n}")
+    def _print_rows(items: list[tuple[str, str, str, str]]) -> None:
+        for i, d, t, n in items:
+            print(f"{i} {d} {t}  {n}")
 
     if arg is None or arg.lower() == "foot":
         _print_rows(rows[-10:])
@@ -238,6 +294,14 @@ def cmd_show(arg: str | None) -> None:
         _print_rows(rows[:limit])
         if len(rows) > limit:
             print(f"... showing first {limit} of {len(rows)}")
+        return
+    if arg.lower() == "first":
+        if rows:
+            _print_rows(rows[:1])
+        return
+    if arg.lower() == "last":
+        if rows:
+            _print_rows(rows[-1:])
         return
 
     try:
@@ -259,68 +323,101 @@ def cmd_show(arg: str | None) -> None:
     if start > end:
         start, end = end, start
 
-    for d, t, n in rows[start - 1 : end]:
-        print(f"{d} {t} {n}")
+    for i, d, t, n in rows[start - 1 : end]:
+        print(f"{i} {d} {t} {n}")
 
 
-def cmd_timenote(time_query: str) -> None:
-    """Print notes for ``time_query``.
-
-    ``time_query`` may be a single time (``HH:MM`` or ``HH:MM:SS``) or a
-    range separated by ``to``. Seconds are matched only if explicitly supplied.
-    """
+def cmd_times(query: str) -> None:
+    """Print notes based on ``query`` with optional date/time range."""
     cfg = load_config()
     nb_path = ensure_notebook(cfg)
     page_path = ensure_page(cfg, nb_path)
 
-    rows: list[tuple[datetime, str]] = []
+    rows: list[tuple[int, datetime, str, str, str]] = []
     with page_path.open(newline="", encoding="utf-8") as fh:
-        for date, tm, note in csv.reader(fh):
-            rows.append((datetime.strptime(f"{date} {tm}", DEFAULT_FMT), note))
+        for idx, d, tm, note in csv.reader(fh):
+            dt = datetime.combine(
+                datetime.strptime(d, DATE_FMT).date(),
+                _time_from_any(tm)
+            )
+            rows.append((int(idx), dt, d, tm, note))
 
-    def _closest(before_list: list[tuple[datetime, str]], after_list: list[tuple[datetime, str]]) -> None:
-        if before_list:
-            dt, note = max(before_list, key=lambda r: r[0])
-            print(f"{dt.strftime(DEFAULT_FMT)}  {note}")
-        else:
-            print("no notes before")
-        if after_list:
-            dt, note = min(after_list, key=lambda r: r[0])
-            print(f"{dt.strftime(DEFAULT_FMT)}  {note}")
-        else:
-            print("no notes after")
-
-    if "to" in time_query:
-        start_s, end_s = [s.strip() for s in time_query.split("to", 1)]
-        start_t, s_exact = _parse_time(start_s)
-        end_t, e_exact = _parse_time(end_s)
-        exact = s_exact or e_exact
-        matches = [
-            (dt, note)
-            for dt, note in rows
-            if _in_range(dt.time(), start_t, end_t, exact)
-        ]
-        if matches:
-            for dt, note in matches:
-                print(f"{dt.strftime(DEFAULT_FMT)}  {note}")
-            return
-        before = [r for r in rows if _seconds(r[0].time()) < _seconds(start_t)]
-        after = [r for r in rows if _seconds(r[0].time()) > _seconds(end_t)]
-        _closest(before, after)
+    # split query into from / to parts
+    if " to " in query:
+        from_s, to_s = [s.strip() for s in query.split(" to ", 1)]
+    elif " - " in query:
+        from_s, to_s = [s.strip() for s in query.split(" - ", 1)]
     else:
-        t, exact = _parse_time(time_query)
-        matches = [
-            (dt, note)
-            for dt, note in rows
-            if _match_time(dt.time(), t, exact)
-        ]
-        if matches:
-            for dt, note in matches:
-                print(f"{dt.strftime(DEFAULT_FMT)}  {note}")
-            return
-        before = [r for r in rows if _seconds(r[0].time()) < _seconds(t)]
-        after = [r for r in rows if _seconds(r[0].time()) > _seconds(t)]
-        _closest(before, after)
+        parts = query.split(" to ")
+        from_s = query.strip()
+        to_s = None
+
+    from_d, from_t = _parse_input(from_s)
+    to_d = to_t = None
+    if to_s:
+        to_d, to_t = _parse_input(to_s)
+
+    today = datetime.now().date()
+    if to_s:
+        if from_d and not to_d:
+            to_d = from_d
+        if to_d and not from_d:
+            from_d = to_d
+        if from_d is None:
+            from_d = today
+        if to_d is None:
+            to_d = from_d
+        if from_t is None:
+            from_t = time(0, 0)
+        if to_t is None:
+            to_t = time(23, 59, 59)
+        start_dt = datetime.combine(from_d, from_t)
+        end_dt = datetime.combine(to_d, to_t)
+        matches = [r for r in rows if start_dt <= r[1] <= end_dt]
+        for i, dt, d, tm, note in matches:
+            print(f"{i} {d} {tm}  {note}")
+        return
+
+    # only from_s
+    d = from_d or today
+    if from_t is None:
+        for i, dt, d_, tm, note in rows:
+            if dt.date() == d:
+                print(f"{i} {d_} {tm}  {note}")
+        return
+    search_dt = datetime.combine(d, from_t)
+    matches = [r for r in rows if r[1] == search_dt]
+    if len(matches) == 1:
+        i, dt, d_, tm, note = matches[0]
+        print(f"{i} {d_} {tm}  {note}")
+        return
+    before = [r for r in rows if r[1] < search_dt]
+    after = [r for r in rows if r[1] > search_dt]
+    if before:
+        b = max(before, key=lambda r: r[1])
+        print(f"BEFORE {b[0]} {b[2]} {b[3]}  {b[4]}")
+    if after:
+        a = min(after, key=lambda r: r[1])
+        print(f"AFTER {a[0]} {a[2]} {a[3]}  {a[4]}")
+
+
+def cmd_clock(fmt: str) -> None:
+    """Convert all times in the active page to ``fmt`` (``12h`` or ``24h``)."""
+    fmt = fmt.lower()
+    if fmt not in {"12h", "24h"}:
+        print("stamp failed: clock requires '12h' or '24h'")
+        return
+    cfg = load_config()
+    nb_path = ensure_notebook(cfg)
+    page_path = ensure_page(cfg, nb_path)
+    rows: list[list[str]] = []
+    with page_path.open(newline="", encoding="utf-8") as fh:
+        for idx, d, tm, note in csv.reader(fh):
+            t_obj = _time_from_any(tm)
+            tm_new = _to_12h(t_obj) if fmt == "12h" else _to_24h(t_obj)
+            rows.append([idx, d, tm_new, note])
+    with page_path.open("w", newline="", encoding="utf-8") as fh:
+        csv.writer(fh).writerows(rows)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -343,15 +440,17 @@ def build_parser() -> argparse.ArgumentParser:
               notebook            choose existing / new notebook
               show <idx>          show note(s) at index or within range <M to N>
               show head/foot/all  show first / last 10 notes or all (max 100)
-              timenote <time>     show note(s) at <time> or within range <HH:MM to HH:MM>
+              show first/last     show very first or very last note
+              times <query>       show notes by date/time; e.g. '08:00', 'from 08:00 to 09:00'
+              clock 12h|24h       convert page times to 12h or 24h format
               search <keyword>    search notes containing <keyword>
-
+              
             Examples
             --------
               stamp - analysed sample DF17 by mass-spec
               stamp show 15 to 20
               stamp show head
-              stamp timenote 08:30 to 13:00
+              stamp times 08:30 to 13:00
               stamp search DF17
             """
         ),
@@ -360,11 +459,17 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def show_help() -> None:
+    """Display CLI usage and repository link."""
+    build_parser().print_help()
+    print("\nFor more info: https://github.com/Donnie-McFarlane/timestampr")
+
+
 def main(argv: list[str] | None = None) -> None:
     """CLI entry point used by the ``stamp`` console script."""
     argv = argv or sys.argv[1:]
     if not argv:
-        build_parser().print_help()
+        show_help()
         sys.exit(0)
 
     # Leading "-" means "new note"
@@ -377,6 +482,9 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     cmd, *rest = argv
+    if cmd in {"h", "-h", "help", "-help", "--h", "--help"}:
+        show_help()
+        return
     if cmd == "active":
         show_active()
     elif cmd == "page":
@@ -388,20 +496,25 @@ def main(argv: list[str] | None = None) -> None:
             print("stamp failed. e.g. of valid args: head, foot, all, 27, or 5 to 10")
             sys.exit(1)
         cmd_show(" ".join(rest))
-    elif cmd == "timenote":
+    elif cmd == "times":
         if not rest:
-            print("stamp failed: supply time as HH:MM OR supply range as HH:MM to HH:MM")
+            print("stamp failed: supply time/date query")
             sys.exit(1)
-        cmd_timenote(" ".join(rest))
+        cmd_times(" ".join(rest))
+    elif cmd == "clock":
+        if not rest:
+            print("stamp failed: supply 12h or 24h")
+            sys.exit(1)
+        cmd_clock(rest[0])
     elif cmd == "search":
         if not rest:
             print("stamp failed: supply search keyword")
             sys.exit(1)
-        for d, t, n in search_notes(" ".join(rest)):
-            print(f"{d} {t}  {n}")
+        for i, d, t, n in search_notes(" ".join(rest)):
+            print(f"{i} {d} {t}  {n}")
     else:
         print(f"stamp failed: unknown command '{cmd}'")
-        build_parser().print_help()
+        show_help()
         sys.exit(1)
 
 

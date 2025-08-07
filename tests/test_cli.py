@@ -86,7 +86,8 @@ def test_append_note(tmp_path, monkeypatch, _):
     monkeypatch.setattr(cli, "save_config", lambda c: None)
     cli.append_note("test")
     rows = list(csv.reader(open(tmp_path / "p.csv")))
-    assert rows[-1][2] == "test"
+    assert rows[-1][3] == "test"
+    assert rows[-1][0] == str(len(rows))
 
 @pytest.mark.parametrize("_", range(3))
 def test_tail(tmp_path, _):
@@ -94,17 +95,19 @@ def test_tail(tmp_path, _):
     with path.open("w", newline="") as fh:
         writer = csv.writer(fh)
         for i in range(5):
-            writer.writerow([f"d{i}", f"t{i}", f"n{i}"])
+            writer.writerow([i + 1, f"d{i}", f"t{i}", f"n{i}"])
     assert len(cli.tail(path, 2)) == 2
     assert len(cli.tail(path, None)) == 5
 
 
 @pytest.mark.parametrize("_", range(3))
-def test_show_active(monkeypatch, capsys, _):
-    monkeypatch.setattr(cli, "load_config", lambda: {"notebook": "nb", "page": "pg"})
+def test_show_active(monkeypatch, tmp_path, capsys, _):
+    page = tmp_path / "pg.csv"
+    page.write_text("1,2025-01-01,00:00:00,a\n")
+    monkeypatch.setattr(cli, "load_config", lambda: {"notebook": str(tmp_path), "page": "pg"})
     cli.show_active()
     captured = capsys.readouterr().out
-    assert "nb" in captured and "pg" in captured
+    assert "Total logs: 1" in captured
 
 @pytest.mark.parametrize("_", range(3))
 def test_change_notebook(tmp_path, monkeypatch, _):
@@ -129,19 +132,19 @@ def test_cmd_show_keywords(tmp_path, monkeypatch, capsys, _):
     with page.open("w", newline="") as fh:
         w = csv.writer(fh)
         for i in range(15):
-            w.writerow([f"d{i}", f"t{i}", f"n{i}"])
+            w.writerow([i + 1, f"d{i}", f"t{i}", f"n{i}"])
     monkeypatch.setattr(cli, "load_config", lambda: {})
     monkeypatch.setattr(cli, "ensure_notebook", lambda c: tmp_path)
     monkeypatch.setattr(cli, "ensure_page", lambda c, nb: page)
     cli.cmd_show("head")
     out = capsys.readouterr().out
-    assert "n0" in out and "n10" not in out
+    assert "1 d0" in out and "n10" not in out
     cli.cmd_show("foot")
     out = capsys.readouterr().out
-    assert "n14" in out and "n4" not in out
+    assert "15 d14" in out and "n4" not in out
     cli.cmd_show("all")
     out = capsys.readouterr().out
-    assert "n0" in out and "n14" in out
+    assert "1 d0" in out and "15 d14" in out
 
 @pytest.mark.parametrize("_", range(3))
 def test_cmd_show_indices(tmp_path, monkeypatch, capsys, _):
@@ -149,35 +152,53 @@ def test_cmd_show_indices(tmp_path, monkeypatch, capsys, _):
     with page.open("w", newline="") as fh:
         w = csv.writer(fh)
         for i in range(5):
-            w.writerow([f"d{i}", f"t{i}", f"n{i}"])
+            w.writerow([i + 1, f"d{i}", f"t{i}", f"n{i}"])
     monkeypatch.setattr(cli, "load_config", lambda: {})
     monkeypatch.setattr(cli, "ensure_notebook", lambda c: tmp_path)
     monkeypatch.setattr(cli, "ensure_page", lambda c, nb: page)
     cli.cmd_show("2")
-    assert "t1" in capsys.readouterr().out
+    assert "2 d1" in capsys.readouterr().out
     cli.cmd_show("2 to 4")
     out = capsys.readouterr().out
-    assert "t1" in out and "t3" in out
+    assert "2 d1" in out and "4 d3" in out
+
 
 @pytest.mark.parametrize("_", range(3))
-def test_cmd_timenote(tmp_path, monkeypatch, capsys, _):
+def test_cmd_show_first_last(tmp_path, monkeypatch, capsys, _):
+    page = tmp_path / "notes.csv"
+    with page.open("w", newline="") as fh:
+        w = csv.writer(fh)
+        for i in range(3):
+            w.writerow([i + 1, f"d{i}", f"t{i}", f"n{i}"])
+    monkeypatch.setattr(cli, "load_config", lambda: {})
+    monkeypatch.setattr(cli, "ensure_notebook", lambda c: tmp_path)
+    monkeypatch.setattr(cli, "ensure_page", lambda c, nb: page)
+    cli.cmd_show("first")
+    out = capsys.readouterr().out
+    assert out.startswith("1 d0")
+    cli.cmd_show("last")
+    out = capsys.readouterr().out
+    assert out.strip().startswith("3 d2")
+
+@pytest.mark.parametrize("_", range(3))
+def test_cmd_times(tmp_path, monkeypatch, capsys, _):
     monkeypatch.setattr(cli, "load_config", lambda: {})
     monkeypatch.setattr(cli, "ensure_notebook", lambda c: tmp_path)
     page = tmp_path / "notes.csv"
-    page.write_text("2025-01-01,08:30:00,note\n")
+    page.write_text("1,2025-01-01,08:30:00,note\n")
     monkeypatch.setattr(cli, "ensure_page", lambda c, nb: page)
-    cli.cmd_timenote("08:30")
+    cli.cmd_times("08:30")
     assert "note" in capsys.readouterr().out
 
 @pytest.mark.parametrize("_", range(3))
 def test_search_notes(tmp_path, monkeypatch, _):
     cfg = {"notebook": str(tmp_path), "page": "p"}
     f = tmp_path / "p.csv"
-    f.write_text("2025-01-01,08:00:00,alpha\n2025-01-01,09:00:00,beta\n")
+    f.write_text("1,2025-01-01,08:00:00,Alpha\n2,2025-01-01,09:00:00,beta\n")
     monkeypatch.setattr(cli, "load_config", lambda: cfg)
     monkeypatch.setattr(cli, "save_config", lambda c: None)
-    results = cli.search_notes("beta")
-    assert results == [("2025-01-01", "09:00:00", "beta")]
+    results = cli.search_notes("ALPHA")
+    assert results == [("1", "2025-01-01", "08:00:00", "Alpha")]
 
 @pytest.mark.parametrize("_", range(3))
 def test_build_parser(_):
@@ -238,17 +259,17 @@ def test_main_show(monkeypatch, _):
 
 
 @pytest.mark.parametrize("_", range(3))
-def test_main_timenote(monkeypatch, _):
+def test_main_times(monkeypatch, _):
     called = {}
-    monkeypatch.setattr(cli, "cmd_timenote", lambda arg: called.setdefault("tn", arg))
-    monkeypatch.setattr(sys, "argv", ["prog", "timenote", "08:00"])
+    monkeypatch.setattr(cli, "cmd_times", lambda arg: called.setdefault("tn", arg))
+    monkeypatch.setattr(sys, "argv", ["prog", "times", "08:00"])
     cli.main()
     assert called.get("tn") == "08:00"
 
 
 @pytest.mark.parametrize("_", range(3))
 def test_main_search(monkeypatch, capsys, _):
-    monkeypatch.setattr(cli, "search_notes", lambda term: [("d", "t", "n")])
+    monkeypatch.setattr(cli, "search_notes", lambda term: [("1", "d", "t", "n")])
     monkeypatch.setattr(sys, "argv", ["prog", "search", "foo"])
     cli.main()
-    assert "d t  n" in capsys.readouterr().out
+    assert "1 d t  n" in capsys.readouterr().out

@@ -22,6 +22,9 @@ def setup_config(tmp_path: Path):
     return cfg_dir, nb, page
 
 
+import io
+
+
 class FakeStdin(io.StringIO):
     def isatty(self):
         return False
@@ -31,8 +34,8 @@ def read_last_note(csv_path: Path) -> str:
     lines = csv_path.read_text(encoding="utf-8").splitlines()
     assert lines, "Expected at least one note row"
     import csv
-    date, tm, note = next(csv.reader([lines[-1]]))
-    assert date and tm
+    idx, date, tm, note = next(csv.reader([lines[-1]]))
+    assert idx and date and tm
     return note
 
 

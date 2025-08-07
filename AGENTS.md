@@ -128,3 +128,11 @@ No runtime network access is necessary.
 * Documented quoting and piping special characters in README
 * Added tests covering new helper and dash behavior
 * No issues
+
+## 2025-08-06  @assistant
+
+* Replaced `timenote` with flexible `times` command and added `clock` for 12h/24h conversions
+* Notes now include row index; commands updated to show it
+* Added `show first/last`, case-insensitive search, help aliases, and log count in `active`
+* Updated README for new commands and special character guidance
+* No issues

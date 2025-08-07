@@ -29,7 +29,7 @@ Each page is a `.csv` file inside that folder;\
 Each line is:
 
 ```
-YYYY-MM-DD,HH:MM:SS,Your note text…
+N,YYYY-MM-DD,HH:MM:SS,Your note text…
 ```
 
 Since it is plain text, you can easily **grep**, **sync to the cloud**, or **open in Excel**.
@@ -61,10 +61,11 @@ stamp - inoculated flasks 7-9
 | `stamp active`                                        | Display active notebook & page          |
 | `stamp page`                                          | Change page                             |
 | `stamp notebook`                                      | Change notebook                         |
-| `stamp show ...` (`head` / `foot` / `all`)            | Show notes (first 10 or last 10 or `all`) |
+| `stamp show ...` (`head` / `foot` / `all` / `first` / `last`) | Show notes (first/last 10, all, or very first/last) |
 | `stamp show N` (e.g. `stamp show 27`)                 | Show notes at index `N` (or range `N to M`) |
-| `stamp timenote Y` (e.g. `stamp timenote 08:30`)      | Show notes at time `Y` (or range `Y to Z`)  |
-| `stamp search keyword`                                | Search notes containing `keyword`       |
+| `stamp times query` (e.g. `stamp times 08:30`, `stamp times from 08:00 to 09:00`) | Show notes by time/date |
+| `stamp clock 12h|24h`                                 | Convert page times to 12h or 24h format |
+| `stamp search keyword`                                | Search notes containing `keyword` (case-insensitive) |
 
 For peace of mind, a message like this appears every time a note is added successfully:
 
@@ -74,19 +75,22 @@ stamp success: wetlab_log 2025-07-30 15:42:01 inoculated all flasks for overnigh
 
 ### 3.1 Special Characters (PowerShell / CMD / Bash)
 
-Some characters like `&`, `|`, `(`, `)`, `{`, `}`, `[`, `]`, `"`, `,`, `#`, and `@` are interpreted by your shell before `stamp` sees them. Use one of the approaches below:
+The following characters are accepted without quoting: `. ! ? / \ - _ = + : [ ] % ^ * ~`.
+Other characters must be preceded by a backtick `` ` `` including `, ; ' ( ) { } | @ # $ & < >`. Double quotation marks are not supported; use single `'` quotes when needed.
+
+Some characters like `&`, `|`, `(`, `)`, `{`, `}`, `[`, `]`, and others are interpreted by your shell before `stamp` sees them. Use one of the approaches below:
 
 #### Easiest: interactive entry
 
 ```
 stamp -
-note> fix @mentions & quotes "double", hash #, pipe |, braces { } [ ] ( ) , commas
+note> fix @mentions & quotes 'single', hash #, pipe |, braces { } [ ] ( ) , commas
 ```
 
 #### Pipe the note via stdin
 
 ```
-printf '%s' 'ALL SPECIALS: # & " @ ( { [ | , } ] ) ^ ~ ! $ % * +' | stamp -
+printf '%s' 'ALL SPECIALS: # & @ ( { [ | , } ] ) ^ ~ ! $ % * +' | stamp -
 ```
 
 #### PowerShell
@@ -94,7 +98,7 @@ printf '%s' 'ALL SPECIALS: # & " @ ( { [ | , } ] ) ^ ~ ! $ % * +' | stamp -
 Use single quotes for literal text and double a single quote inside:
 
 ```
-stamp - 'fix @mentions & quotes "double", hash #, pipe |, braces { } [ ] ( ) , commas'
+stamp - 'fix @mentions & quotes single, hash #, pipe |, braces { } [ ] ( ) , commas'
 stamp - 'Don''t break single quotes'
 ```
 
@@ -103,7 +107,7 @@ stamp - 'Don''t break single quotes'
 Prefer interactive mode (`stamp -`) or escape operators with `^` when using quotes:
 
 ```
-stamp - "fix @mentions & quotes ""double"", hash #, pipe ^|, braces { } [ ] ( ) , commas"
+stamp - "fix @mentions & quotes single, hash #, pipe ^|, braces { } [ ] ( ) , commas"
 ```
 
 #### Bash / Zsh
@@ -111,7 +115,7 @@ stamp - "fix @mentions & quotes ""double"", hash #, pipe ^|, braces { } [ ] ( ) 
 Use single quotes for literal text; escape a single quote by closing and reopening:
 
 ```
-stamp - 'fix @mentions & quotes "double", hash #, pipe |, braces { } [ ] ( ) , commas'
+stamp - 'fix @mentions & quotes single, hash #, pipe |, braces { } [ ] ( ) , commas'
 stamp - 'Don'\''t break single quotes'
 ```
 

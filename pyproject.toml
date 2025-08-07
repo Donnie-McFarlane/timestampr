@@ -1,6 +1,6 @@
 [project]
 name            = "timestampr"
-version         = "1.0.2"
+version = "1.1.0"
 description     = "Bare‑bones note‑taker with timestamp"
 authors         = [{ name = "Donnie McFarlane" }]
 license         = { text = "MIT" }

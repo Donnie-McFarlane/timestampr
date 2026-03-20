@@ -1,5 +1,6 @@
-# timestampr(CLI)
-
+<p align="center">
+  <img src="man/figures/timestampr_banner.png" alt="timestampr(CLI) banner" width="1000">
+</p>
 A bare-bones note-taker. Dead simple to use. Helps keep you on track.
 
 ---

@@ -43,7 +43,7 @@ def _read_note_from_stdin_or_prompt() -> str:
     except Exception:
         is_tty = True
     if not is_tty:
-        return sys.stdin.read().rstrip("\n")
+        return sys.stdin.read().strip()
     return input("note> ")
 
 def now() -> datetime:
@@ -474,10 +474,36 @@ def main(argv: list[str] | None = None) -> None:
 
     # Leading "-" means "new note"
     if argv[0] == "-":
-        if len(argv) == 1:
-            note_text = _read_note_from_stdin_or_prompt()
+        # Case 1: inline text was provided → confirm
+        if len(argv) > 1:
+            inline_note = " ".join(argv[1:]).strip()
+
+            print("\nDetected inline note:")
+            print(f"> {inline_note}\n")
+
+            while True:
+                resp = input("Save this note? [y/n]: ").strip().lower()
+
+                if resp in {"", "y", "yes", "1"}:
+                    print("Note saved.")
+                    note_text = inline_note
+                    break # exits loop
+
+                elif resp in {"n", "no", "0", "2"}:
+                    print("Note discarded.")
+                    return # exits function
+
+                else:
+                    print("Response unclear, try again.")
+
+        # Case 2: no inline text → safe input
         else:
-            note_text = " ".join(argv[1:])
+            note_text = _read_note_from_stdin_or_prompt().strip()
+
+        if not note_text:
+            print("stamp error: empty note")
+            return
+
         append_note(note_text)
         return
 

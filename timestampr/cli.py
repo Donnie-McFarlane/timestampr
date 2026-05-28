@@ -27,6 +27,7 @@ DATE_FMT    = "%Y-%m-%d"
 TIME_FMT    = "%H:%M:%S"
 DEFAULT_FMT = f"{DATE_FMT} {TIME_FMT}"
 MAX_PREVIEW = 50
+CANCEL_WORDS = {"q", "quit", "cancel", "exit"}
 
 # Time format constants
 TWELVE_FMT  = "%I:%M:%S.%p"
@@ -134,19 +135,126 @@ def save_config(cfg: dict) -> None:
         json.dump(cfg, fh, indent=2)
 
 
+def cancel_if_requested(user_input: str) -> None:
+    """Exit cleanly if the user requested cancellation."""
+    if user_input.strip().lower() in CANCEL_WORDS:
+        print("Cancelled.")
+        raise SystemExit(0)
+
+
+def resolve_menu_choice(user_input: str, options: list[str]) -> str:
+    """
+    Resolve menu choices like:
+      1
+      [1]
+      feb2026
+      [1] feb2026
+    """
+    raw = str(user_input).strip()
+
+    m = re.fullmatch(r"\[?\s*(\d+)\s*\]?(?:\s+.+)?", raw)
+    if m:
+        idx = int(m.group(1))
+        if 1 <= idx <= len(options):
+            return options[idx - 1]
+
+    return raw
+
+
+def get_notebook_root(cfg: dict) -> Path:
+    """
+    Return the configured notebook root.
+
+    Falls back to the current working directory if no root has been configured yet.
+    """
+    root = cfg.get("notebook_root")
+
+    if root:
+        return Path(root).expanduser().resolve()
+
+    return Path.cwd().expanduser().resolve()
+
+
+def set_notebook_root(path_text: str) -> Path:
+    """Set the root folder where timestampr notebooks are listed from."""
+    root = Path(path_text).expanduser().resolve()
+    root.mkdir(parents=True, exist_ok=True)
+
+    cfg = load_config()
+    cfg["notebook_root"] = str(root)
+    save_config(cfg)
+
+    return root
+
+
 def prompt_notebook() -> Path:
     """Ask the user for a notebook folder path and ensure it exists."""
-    path = input("provide file-path to your notebook (folder)\n> ").strip()
-    nb = Path(path).expanduser().resolve()
+    cfg = load_config()
+    base_dir = get_notebook_root(cfg)
+
+    folders = sorted(
+        p.name
+        for p in base_dir.iterdir()
+        if p.is_dir()
+    )
+
+    if folders:
+        print(f"Existing notebooks in {base_dir}:")
+        for i, folder in enumerate(folders, 1):
+            print(f"[{i}] {folder}")
+    else:
+        print(f"(no notebooks yet in {base_dir})")
+
+    print("Enter a notebook folder name, number, full path, or q to cancel.")
+    choice = input("provide file-path to your notebook (folder)\n> ").strip()
+
+    if not choice:
+        print("Cancelled.")
+        raise SystemExit(0)
+
+    cancel_if_requested(choice)
+
+    choice = resolve_menu_choice(choice, folders)
+
+    nb = Path(choice).expanduser()
+
+    if not nb.is_absolute():
+        nb = base_dir / nb
+
+    nb = nb.resolve()
     nb.mkdir(parents=True, exist_ok=True)
     return nb
 
 
-def prompt_page() -> str:
-    """Ask for a page name; generate a timestamped one if blank."""
+def prompt_page(nb_path: Path | None = None) -> str:
+    """Ask for a page name; allow choosing existing pages by name or number."""
+    pages: list[str] = []
+
+    if nb_path is not None:
+        pages = sorted(
+            p.stem
+            for p in nb_path.glob("*.csv")
+            if p.is_file()
+        )
+
+        if pages:
+            print("Existing pages:")
+            for i, page in enumerate(pages, 1):
+                print(f"[{i}] {page}")
+        else:
+            print("(no pages yet)")
+
+    print("Enter a page name, number, or q to cancel.")
     name = input("name of new page\n> ").strip()
+
     if not name:
-        name = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        print("Cancelled.")
+        raise SystemExit(0)
+
+    cancel_if_requested(name)
+
+    name = resolve_menu_choice(name, pages)
+
     return name
 
 
@@ -165,7 +273,7 @@ def ensure_page(cfg: dict, nb_path: Path) -> Path:
     page_name = cfg.get("page")
     page_path = nb_path / f"{page_name}.csv" if page_name else None
     if not page_path or not page_path.exists():
-        page_name = prompt_page()
+        page_name = prompt_page(nb_path)
         page_path = nb_path / f"{page_name}.csv"
         page_path.touch()
         cfg["page"] = page_name
@@ -231,19 +339,27 @@ def change_page() -> None:
     cfg = load_config()
     nb_path = ensure_notebook(cfg)
 
-    pages = sorted(p.stem for p in nb_path.glob("*.csv"))
-    if pages:
-        print("Existing pages:")
-        for i, p in enumerate(pages, 1):
-            print(f"[{i}] {p}")
-    else:
-        print("(no pages yet)")
+    pg = prompt_page(nb_path)
 
-    pg = prompt_page()
     (nb_path / f"{pg}.csv").touch()
     cfg["page"] = pg
     save_config(cfg)
     print(f"Page changed to {pg}")
+
+
+def setup_root(path_text: str | None = None) -> None:
+    """Configure the root folder where timestampr notebooks are listed."""
+    if path_text is None or not path_text.strip():
+        path_text = input("provide root folder for timestampr notebooks, or q to cancel\n> ").strip()
+
+    if not path_text:
+        print("Cancelled.")
+        raise SystemExit(0)
+
+    cancel_if_requested(path_text)
+
+    root = set_notebook_root(path_text)
+    print(f"Notebook root set to {root}")
 
 
 def tail(page_path: Path, n: int | None) -> list[tuple[str, str, str, str]]:
@@ -431,29 +547,35 @@ def build_parser() -> argparse.ArgumentParser:
         add_help=False,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=dedent(
-            """\
-            Commands
-            --------
-              - <note>            append <note> to active page
-              active              show active notebook & page
-              page                choose existing / new page
-              notebook            choose existing / new notebook
-              show <idx>          show note(s) at index or within range <M to N>
-              show head/foot/all  show first / last 10 notes or all (max 100)
-              show first/last     show very first or very last note
-              times <query>       show notes by date/time; e.g. '08:00', 'from 08:00 to 09:00'
-              clock 12h|24h       convert page times to 12h or 24h format
-              search <keyword>    search notes containing <keyword>
-              
-            Examples
-            --------
-              stamp - analysed sample DF17 by mass-spec
-              stamp show 15 to 20
-              stamp show head
-              stamp times 08:30 to 13:00
-              stamp search DF17
-            """
-        ),
+	    r"""\
+	    Commands
+	    --------
+	      - <note>            append <note> to active page
+	      active              show active notebook & page
+	      page                choose existing / new page
+	      notebook            choose existing / new notebook
+	      setup <path>        set root folder for timestampr notebooks
+	      show <idx>          show note(s) at index or within range <M to N>
+	      show head/foot/all  show first / last 10 notes or all (max 100)
+	      show first/last     show very first or very last note
+	      times <query>       show notes by date/time; e.g. '08:00', 'from 08:00 to 09:00'
+	      clock 12h|24h       convert page times to 12h or 24h format
+	      search <keyword>    search notes containing <keyword>
+
+	    Examples
+	    --------
+	      stamp setup C:\Users\Example
+	      stamp notebook Personal
+	      stamp page Party_Planning
+
+	      stamp - Reminder to buy water balloons by Friday!
+
+	      stamp show 15 to 20
+	      stamp show head
+	      stamp times 08:30 to 13:00
+	      stamp search "buy"
+	    """
+	),
     )
     p.add_argument("cmd", nargs=argparse.REMAINDER)
     return p
@@ -517,6 +639,8 @@ def main(argv: list[str] | None = None) -> None:
         change_page()
     elif cmd == "notebook":
         change_notebook()
+    elif cmd == "setup":
+        setup_root(" ".join(rest) if rest else None)
     elif cmd == "show":
         if not rest:
             print("stamp failed. e.g. of valid args: head, foot, all, 27, or 5 to 10")
